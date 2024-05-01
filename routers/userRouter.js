@@ -1,0 +1,123 @@
+import express from 'express'
+import postgresClient from '../config/db.js'
+
+const router = express.Router()
+
+//Create Users
+router.post('/', async (req, res) => {
+    try {
+        // Mevcut en büyük id'yi al
+        const selectQuery = "SELECT * FROM users ORDER BY id ASC";
+        const { rows } = await postgresClient.query(selectQuery);
+
+        let maxId = 0;
+        rows.forEach(row => {
+            if (row.id > maxId) {
+                maxId = row.id;
+            }
+        });
+
+        console.log('En büyük ID:', maxId);
+        // Yeni id'yi hesapla
+        let newId = maxId + 1;
+
+        // Yeni kullanıcıyı ekleme işlemi
+        const insertText = "INSERT INTO users (id, email, password, fullname) VALUES ($1, $2, crypt($3, gen_salt('bf')), $4) RETURNING *";
+        const insertValues = [newId, req.body.email, req.body.password, req.body.fullname];
+        const { rows: insertedRows } = await postgresClient.query(insertText, insertValues);
+
+        return res.status(201).json({ createdUser: insertedRows[0] });
+    } catch (error) {
+        console.error('Error occurred', error.message);
+        return res.status(400).json({ message: error.message });
+    }
+});
+
+// Authenticate user login
+router.post('/login', async (req, res) => {
+    try {
+        const text = "SELECT * FROM users WHERE email = $1 AND password = crypt($2, password)"
+
+        const values = [req.body.email, req.body.password]
+
+        const { rows } = await postgresClient.query(text, values)
+        if (!rows.length)
+            return res.status(404).json({ message: 'User not found.' })
+
+        return res.status(200).json({ message: 'Authentication successful.' })
+    } catch (error) {
+        console.log('Error occured', error.message)
+        return res.status(400).json({ message: error.message })
+    }
+})
+
+// Update user
+router.put('/update/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params
+
+        const text = "UPDATE users SET email = $1, fullname = $2 WHERE id = $3 RETURNING *"
+
+        const values = [req.body.email, req.body.fullname, userId]
+
+        const { rows } = await postgresClient.query(text, values)
+        if (!rows.length)
+            return res.status(404).json({ message: 'User not found.' })
+
+        return res.status(200).json({ updatedUser: rows[0] })
+    } catch (error) {
+        console.log('Error occured', error.message)
+        return res.status(400).json({ message: error.message })
+    }
+})
+
+
+router.delete('/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        // Silinecek kullanıcıyı belirten ID'ye sahip kullanıcıyı veritabanından silme işlemi
+        const silText = "DELETE FROM users WHERE id = $1 RETURNING *";
+        const silDegerler = [userId];
+
+        const { rows } = await postgresClient.query(silText, silDegerler);
+        if (!rows.length)
+            return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
+
+        // Kullanıcıyı sildikten sonra ID'leri yeniden yapılandırma işlemi
+        const yapılandırmaText = "UPDATE users SET id = id - 1 WHERE id > $1";
+        const yapılandırmaDegerler = [userId];
+        await postgresClient.query(yapılandırmaText, yapılandırmaDegerler);
+
+        return res.status(200).json({ silinenKullanıcı: rows[0] });
+    } catch (error) {
+        console.log('Hata oluştu', error.message);
+        return res.status(400).json({ message: error.message });
+    }
+});
+
+// Get users
+router.get('/', async (req, res) => {
+    try {
+        const text = "SELECT * FROM users ORDER BY id ASC";
+        const { rows } = await postgresClient.query(text);
+
+        let maxId = 0;
+        rows.forEach(row => {
+            if (row.id > maxId) {
+                maxId = row.id;
+            }
+        });
+
+        console.log('En büyük ID:', maxId);
+        let newId=maxId+1
+
+        return res.status(200).json({ maxId: maxId });
+    } catch (error) {
+        console.error('Hata oluştu', error.message);
+        return res.status(400).json({ message: error.message });
+    }
+});
+
+
+export default router
