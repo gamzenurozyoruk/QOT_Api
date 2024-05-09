@@ -6,7 +6,8 @@ const app = express()
 app.use(express.json())
 app.use('/users', userRouter)
 
-const PORT = process.env.PORT || 5000
+
+const PORT = 5439
 
 app.listen(PORT, () => {
 

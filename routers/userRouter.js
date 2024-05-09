@@ -121,6 +121,7 @@ router.delete('/:userId', async (req, res) => {
 // Get users
 router.get('/', async (req, res) => {
     try {
+        console.log('asjkaskfhajksfhasjfkahsfkjasf')
         const text = "SELECT * FROM users ORDER BY id ASC";
         const { rows } = await postgresClient.query(text);
 
@@ -130,6 +131,5 @@ router.get('/', async (req, res) => {
         return res.status(400).json({ message: error.message });
     }
 });
-
 
 export default router
